@@ -17,8 +17,11 @@ function openDatabase() {
     return idb.open('wittr', 1, function (db) {
         var objectStore = db.createObjectStore('wittrs', {keyPath: 'id'});
         // objectStore.createIndex('id' , {keypath: 'id'});
-        objectStore.createIndex('by-date', 'time');
-    }); 
+        objectStore.createIndex('by-date', 'time', {unique: false});
+    });
+    // .then(function(db) {
+    //     console.log('Database ' + db.name + ' created.');
+    // }); 
 
     // return dbPromise;
 }
@@ -136,20 +139,21 @@ IndexController.prototype._openSocket = function () {
 // called when the web socket sends message data
 IndexController.prototype._onSocketMessage = function (data) {
     var messages = JSON.parse(data);
-    messages.forEach(function(message) {
-        console.log(message);
-        // db.put(message);
-    });
 
     this._dbPromise.then(function (db) {
         if (!db) return;
 
         // TODO: put each message into the 'wittrs'
         // object store.
+        var tx = db.transaction('wittrs', 'readwrite');
+        var messageStore = tx.objectStore('wittrs');
         messages.forEach(function(message) {
-            console.log(message);
-            // db.put(message);
+            // console.log(message);
+            messageStore.put(message);
         });
+        return tx.complete;
+    }).then(function() {
+        console.log('Messages added to wittrs object store.');
     });
 
     this._postsView.addPosts(messages);
